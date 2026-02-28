@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PowerShell Access Control Simulator</title>
+    <style>
+        body {
+            background-color: #012456; /* Classic PowerShell Blue */
+            color: #eeeeee;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 16px;
+            margin: 0;
+            padding: 20px;
+            height: 100vh;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+        #terminal {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            padding-bottom: 20px;
+        }
+        .error {
+            color: #ff5555; /* PowerShell red text */
+        }
+        .warning {
+            color: #ffff55; /* PowerShell yellow text */
+        }
+        .input-line {
+            display: flex;
+            align-items: flex-start;
+        }
+        .prompt {
+            margin-right: 8px;
+            white-space: pre;
+        }
+        input[type="text"] {
+            background-color: transparent;
+            color: #eeeeee;
+            border: none;
+            outline: none;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 16px;
+            flex-grow: 1;
+        }
+    </style>
+</head>
+<body>
+
+<div id="terminal">
+Windows PowerShell Simulator
+Copyright (C) Microsoft Corporation. All rights reserved.
+<br>
+<span class="warning">Notice: You are logged in as 'StandardUser'.
+Type 'help' to view the goals for today's scenarios.</span><br><br>
+</div>
+
+<div class="input-line">
+    <span class="prompt" id="prompt">PS C:\Users\StandardUser&gt;</span>
+    <input type="text" id="cmdInput" autofocus autocomplete="off" spellcheck="false">
+</div>
+
+<script>
+    // --- MOCK SYSTEM STATE ---
+    let currentUser = "StandardUser";
+    let currentPath = ["C:", "Users", "StandardUser"];
+
+    const groups = {
+        "Administrators": ["Teacher", "SYSTEM", "flagOF{Evil_Hacker_99}"],
+        "Users": ["StandardUser"]
+    };
+
+    // --- MOCK FILE SYSTEM ---
+    const fs = {
+        "C:": {
+            type: "dir",
+            "Public": {
+                type: "dir",
+                "Notices.txt": { type: "file", owner: "SYSTEM", acl: { "Users": "R", "Administrators": "F" }, content: "SYSTEM NOTICE:\nIf you successfully verified that only Admins can read the policy file, your flag is: flagOF{Access_Denied_Is_A_Feature}" }
+            },
+            "Windows": {
+                type: "dir",
+                "System32": {
+                    type: "dir",
+                    "policy.txt": { type: "file", owner: "SYSTEM", acl: { "Administrators": "R", "SYSTEM": "F" }, content: "CONFIDENTIAL SYSTEM POLICY.\nNever expose this file." }
+                }
+            },
+            "Users": {
+                type: "dir",
+                "StandardUser": {
+                    type: "dir",
+                    "Documents": {
+                        type: "dir",
+                        "notes.txt": { type: "file", owner: "StandardUser", acl: { "StandardUser": "F" }, content: "Class Notes:\nRemember, aliases are for shortcuts, but cmdlets are for scripts.\nflagOF{Cmdlets_Are_Fundamental}" }
+                    },
+                    "Project": {
+                        type: "dir",
+                        "launch_codes.txt": { type: "file", owner: "StandardUser", acl: { "SYSTEM": "F" }, content: "Missile Command Data:\nflagOF{I_Control_The_ACLs}" }
+                    }
+                }
+            }
+        }
+    };
+
+    // --- HELPER FUNCTIONS ---
+    function print(text, className = "") {
+        const term = document.getElementById("terminal");
+        const span = document.createElement("span");
+        if (className) span.className = className;
+        span.textContent = text + "\n";
+        term.appendChild(span);
+        window.scrollTo(0, document.body.scrollHeight);
+    }
+
+    function updatePrompt() {
+        document.getElementById("prompt").textContent = `PS ${currentPath.join("\\")}>`;
+    }
+
+    function resolvePath(pathStr) {
+        if (!pathStr) return { node: getDirFromPath(currentPath), path: currentPath };
+        
+        let parts = pathStr.split("\\").filter(p => p !== "");
+        let navPath = [];
+
+        if (parts[0] === "C:") {
+            navPath = parts; // Absolute
+        } else {
+            navPath = [...currentPath]; // Relative
+            for (let part of parts) {
+                if (part === "..") navPath.pop();
+                else if (part !== ".") navPath.push(part);
+            }
+        }
+
+        let curr = fs;
+        for (let p of navPath) {
+            if (curr[p]) curr = curr[p];
+            else return null;
+        }
+        return { node: curr, path: navPath };
+    }
+
+    function getDirFromPath(pathArr) {
+        let curr = fs;
+        for (let p of pathArr) curr = curr[p];
+        return curr;
+    }
+
+    function checkPermission(node, requiredPerm) {
+        if (groups["Administrators"].includes(currentUser)) return true; // Admins do what they want
+        
+        // Check exact user
+        if (node.acl && (node.acl[currentUser] === "F" || node.acl[currentUser] === requiredPerm)) return true;
+        
+        // Check groups
+        for (let group in groups) {
+            if (groups[group].includes(currentUser)) {
+                if (node.acl && (node.acl[group] === "F" || node.acl[group] === requiredPerm)) return true;
+            }
+        }
+        return false;
+    }
+
+    // --- COMMAND PARSER ---
+    document.getElementById("cmdInput").addEventListener("keydown", function(e) {
+        if (e.key === "Enter") {
+            let input = this.value.trim();
+            this.value = "";
+            print(`PS ${currentPath.join("\\")}> ${input}`);
+            if (input) executeCommand(input);
+        }
+    });
+
+    function executeCommand(input) {
+        // Handle quotes, then split spaces
+        let args = input.match(/(?:[^\s"]+|"[^"]*")+/g).map(s => s.replace(/"/g, ''));
+        let cmd = args.shift().toLowerCase();
+
+        // Clean up common PowerShell parameters for easier parsing
+        args = args.filter(a => a.toLowerCase() !== '-path' && a.toLowerCase() !== '-group');
+
+        // Trap aliases
+        const aliases = ['ls', 'cat', 'cd', 'dir', 'echo'];
+        if (aliases.includes(cmd)) {
+            print(`Simulator Notice: The term '${cmd}' is an alias. In this class, please practice using the proper PowerShell cmdlet (e.g., Get-ChildItem, Get-Content, Set-Location).`, "warning");
+            return;
+        }
+
+        try {
+            switch (cmd) {
+                case "help":
+                    print("Available Cmdlets:\nGet-ChildItem, Get-Content, Set-Location, Get-Acl, Get-LocalUser, Get-LocalGroupMember, icacls, clear\n\nScenarios:\n1. Find the flag hidden in your Documents.\n2. Attempt to read C:\\Windows\\System32\\policy.txt\n3. Check the Administrators group for unauthorized users.\n4. Restore your own read access to C:\\Users\\StandardUser\\Project\\launch_codes.txt");
+                    break;
+
+                case "clear":
+                    document.getElementById("terminal").innerHTML = "";
+                    break;
+
+                case "set-location":
+                    if (!args[0]) throw new Error("Set-Location : Missing argument");
+                    let resPath = resolvePath(args[0]);
+                    if (resPath && resPath.node.type === "dir") {
+                        currentPath = resPath.path;
+                        updatePrompt();
+                    } else {
+                        print(`Set-Location : Cannot find path '${args[0]}' because it does not exist.`, "error");
+                    }
+                    break;
+
+                case "get-childitem":
+                    let targetDir = resolvePath(args[0]);
+                    if (!targetDir || targetDir.node.type !== "dir") {
+                        print(`Get-ChildItem : Cannot find path.`, "error");
+                        break;
+                    }
+                    print(`\n    Directory: ${targetDir.path.join("\\")}\n`);
+                    print("Mode                Name");
+                    print("----                ----");
+                    for (let key in targetDir.node) {
+                        if (key === "type" || key === "owner" || key === "acl" || key === "content") continue;
+                        let mode = targetDir.node[key].type === "dir" ? "d-----" : "-a----";
+                        print(`${mode}              ${key}`);
+                    }
+                    print("");
+                    break;
+
+                case "get-content":
+                    if (!args[0]) {
+                        print("Get-Content : Cannot process command because parameter is missing.", "error");
+                        break;
+                    }
+                    let fileRes = resolvePath(args[0]);
+                    if (!fileRes || fileRes.node.type !== "file") {
+                        print(`Get-Content : Cannot find path '${args[0]}'.`, "error");
+                        break;
+                    }
+                    if (!checkPermission(fileRes.node, "R")) {
+                        print(`Get-Content : Access to the path '${args[0]}' is denied.`, "error");
+                    } else {
+                        print(fileRes.node.content);
+                    }
+                    break;
+
+                case "get-acl":
+                    if (!args[0]) { print("Get-Acl : Missing path.", "error"); break; }
+                    let aclRes = resolvePath(args[0]);
+                    if (!aclRes) { print(`Get-Acl : Cannot find path.`, "error"); break; }
+                    
+                    print(`\n    Directory: ${aclRes.path.slice(0,-1).join("\\")}\n`);
+                    print("Path             Owner                 Access");
+                    print("----             -----                 ------");
+                    let accessStr = Object.entries(aclRes.node.acl || {}).map(([u, p]) => `${u} Allow ${p}`).join(", ");
+                    print(`${aclRes.path[aclRes.path.length-1].padEnd(16)} ${aclRes.node.owner.padEnd(21)} ${accessStr}\n`);
+                    break;
+
+                case "get-localuser":
+                    print("Name                    Enabled  Description");
+                    print("----                    -------  -----------");
+                    print("StandardUser            True     Standard student account");
+                    print("Teacher                 True     Instructor Admin");
+                    print("SYSTEM                  True     Built-in system account");
+                    print("flagOF{Evil_Hacker_99}  True     Suspicious account");
+                    break;
+
+                case "get-localgroupmember":
+                    if (args[0] === "Administrators") {
+                        print("Name");
+                        print("----");
+                        groups["Administrators"].forEach(u => print(`LAPTOP-SIM\\${u}`));
+                    } else {
+                        print("Get-LocalGroupMember : Group not found.", "error");
+                    }
+                    break;
+
+                case "icacls":
+                    // Format expected: icacls C:\path\file.txt /grant StandardUser:R
+                    if (args.length < 3) { print("Invalid syntax. Expected: icacls <path> /grant <User>:<Perm>", "error"); break; }
+                    let icaclsPath = resolvePath(args[0]);
+                    if (!icaclsPath) { print("icacls : The system cannot find the file specified.", "error"); break; }
+                    
+                    if (args[1].toLowerCase() === "/grant") {
+                        let permParts = args[2].split(":");
+                        if (permParts.length !== 2) { print("Invalid parameter format. Use User:R or User:F", "error"); break; }
+                        let targetUser = permParts[0];
+                        let perm = permParts[1].toUpperCase();
+
+                        // Check if current user is owner or admin to change ACL
+                        if (icaclsPath.node.owner === currentUser || groups["Administrators"].includes(currentUser)) {
+                            if (!icaclsPath.node.acl) icaclsPath.node.acl = {};
+                            icaclsPath.node.acl[targetUser] = perm;
+                            print(`processed file: ${args[0]}\nSuccessfully processed 1 files; Failed processing 0 files`);
+                        } else {
+                            print("Access is denied.", "error");
+                        }
+                    } else {
+                        print("Only /grant is supported in this simulation.", "error");
+                    }
+                    break;
+
+                default:
+                    print(`${cmd} : The term '${cmd}' is not recognized as the name of a cmdlet.`, "error");
+            }
+        } catch (err) {
+            print(err.message, "error");
+        }
+    }
+</script>
+</body>
+</html>
