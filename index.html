@@ -6,7 +6,7 @@
     <title>PowerShell Access Control Simulator</title>
     <style>
         body {
-            background-color: #012456; /* Classic PowerShell Blue */
+            background-color: #012456;
             color: #eeeeee;
             font-family: 'Consolas', 'Courier New', monospace;
             font-size: 16px;
@@ -21,12 +21,8 @@
             word-wrap: break-word;
             padding-bottom: 20px;
         }
-        .error {
-            color: #ff5555; /* PowerShell red text */
-        }
-        .warning {
-            color: #ffff55; /* PowerShell yellow text */
-        }
+        .error { color: #ff5555; }
+        .warning { color: #ffff55; }
         .input-line {
             display: flex;
             align-items: flex-start;
@@ -53,7 +49,8 @@ Windows PowerShell Simulator
 Copyright (C) Microsoft Corporation. All rights reserved.
 <br>
 <span class="warning">Notice: You are logged in as 'StandardUser'.
-Type 'help' to view the goals for today's scenarios.</span><br><br>
+Type 'help' to view the goals for today's scenarios.
+Tip: Use the Up and Down arrow keys to cycle through your command history.</span><br><br>
 </div>
 
 <div class="input-line">
@@ -65,6 +62,10 @@ Type 'help' to view the goals for today's scenarios.</span><br><br>
     // --- MOCK SYSTEM STATE ---
     let currentUser = "StandardUser";
     let currentPath = ["C:", "Users", "StandardUser"];
+    
+    // Command History State
+    let commandHistory = [];
+    let historyIndex = -1;
 
     const groups = {
         "Administrators": ["Teacher", "SYSTEM", "flagOF{Evil_Hacker_99}"],
@@ -78,6 +79,10 @@ Type 'help' to view the goals for today's scenarios.</span><br><br>
             "Public": {
                 type: "dir",
                 "Notices.txt": { type: "file", owner: "SYSTEM", acl: { "Users": "R", "Administrators": "F" }, content: "SYSTEM NOTICE:\nIf you successfully verified that only Admins can read the policy file, your flag is: flagOF{Access_Denied_Is_A_Feature}" }
+            },
+            "Scripts": {
+                type: "dir",
+                "backup.ps1": { type: "file", owner: "SYSTEM", acl: { "Users": "F", "Administrators": "F" }, content: "# Automated System Backup\n# WARNING VULNERABILITY: The standard 'Users' group has Full Control over this script.\n# flagOF{Least_Privilege_Violated}"}
             },
             "Windows": {
                 type: "dir",
@@ -148,12 +153,10 @@ Type 'help' to view the goals for today's scenarios.</span><br><br>
     }
 
     function checkPermission(node, requiredPerm) {
-        if (groups["Administrators"].includes(currentUser)) return true; // Admins do what they want
+        if (groups["Administrators"].includes(currentUser)) return true;
         
-        // Check exact user
         if (node.acl && (node.acl[currentUser] === "F" || node.acl[currentUser] === requiredPerm)) return true;
         
-        // Check groups
         for (let group in groups) {
             if (groups[group].includes(currentUser)) {
                 if (node.acl && (node.acl[group] === "F" || node.acl[group] === requiredPerm)) return true;
@@ -162,25 +165,42 @@ Type 'help' to view the goals for today's scenarios.</span><br><br>
         return false;
     }
 
-    // --- COMMAND PARSER ---
+    // --- COMMAND PARSER & HISTORY ---
     document.getElementById("cmdInput").addEventListener("keydown", function(e) {
         if (e.key === "Enter") {
             let input = this.value.trim();
             this.value = "";
             print(`PS ${currentPath.join("\\")}> ${input}`);
-            if (input) executeCommand(input);
+            if (input) {
+                // Add to history and reset index
+                commandHistory.push(input);
+                historyIndex = commandHistory.length;
+                executeCommand(input);
+            }
+        } else if (e.key === "ArrowUp") {
+            e.preventDefault(); // Prevents cursor from jumping to the start of the line
+            if (historyIndex > 0) {
+                historyIndex--;
+                this.value = commandHistory[historyIndex];
+            }
+        } else if (e.key === "ArrowDown") {
+            e.preventDefault();
+            if (historyIndex < commandHistory.length - 1) {
+                historyIndex++;
+                this.value = commandHistory[historyIndex];
+            } else {
+                historyIndex = commandHistory.length;
+                this.value = ""; // Clear input if at the end of history
+            }
         }
     });
 
     function executeCommand(input) {
-        // Handle quotes, then split spaces
         let args = input.match(/(?:[^\s"]+|"[^"]*")+/g).map(s => s.replace(/"/g, ''));
         let cmd = args.shift().toLowerCase();
 
-        // Clean up common PowerShell parameters for easier parsing
         args = args.filter(a => a.toLowerCase() !== '-path' && a.toLowerCase() !== '-group');
 
-        // Trap aliases
         const aliases = ['ls', 'cat', 'cd', 'dir', 'echo'];
         if (aliases.includes(cmd)) {
             print(`Simulator Notice: The term '${cmd}' is an alias. In this class, please practice using the proper PowerShell cmdlet (e.g., Get-ChildItem, Get-Content, Set-Location).`, "warning");
@@ -190,7 +210,7 @@ Type 'help' to view the goals for today's scenarios.</span><br><br>
         try {
             switch (cmd) {
                 case "help":
-                    print("Available Cmdlets:\nGet-ChildItem, Get-Content, Set-Location, Get-Acl, Get-LocalUser, Get-LocalGroupMember, icacls, clear\n\nScenarios:\n1. Find the flag hidden in your Documents.\n2. Attempt to read C:\\Windows\\System32\\policy.txt\n3. Check the Administrators group for unauthorized users.\n4. Restore your own read access to C:\\Users\\StandardUser\\Project\\launch_codes.txt");
+                    print("Available Cmdlets:\nGet-ChildItem, Get-Content, Set-Location, Get-Acl, Get-LocalUser, Get-LocalGroupMember, icacls, clear\n\nScenarios:\n1. Find the flag hidden in your Documents.\n2. Attempt to read C:\\Windows\\System32\\policy.txt\n3. Check the Administrators group for unauthorized users.\n4. Restore your own read access to C:\\Users\\StandardUser\\Project\\launch_codes.txt\n5. Audit C:\\Scripts\\backup.ps1 for insecure permissions.");
                     break;
 
                 case "clear":
@@ -274,7 +294,6 @@ Type 'help' to view the goals for today's scenarios.</span><br><br>
                     break;
 
                 case "icacls":
-                    // Format expected: icacls C:\path\file.txt /grant StandardUser:R
                     if (args.length < 3) { print("Invalid syntax. Expected: icacls <path> /grant <User>:<Perm>", "error"); break; }
                     let icaclsPath = resolvePath(args[0]);
                     if (!icaclsPath) { print("icacls : The system cannot find the file specified.", "error"); break; }
@@ -285,7 +304,6 @@ Type 'help' to view the goals for today's scenarios.</span><br><br>
                         let targetUser = permParts[0];
                         let perm = permParts[1].toUpperCase();
 
-                        // Check if current user is owner or admin to change ACL
                         if (icaclsPath.node.owner === currentUser || groups["Administrators"].includes(currentUser)) {
                             if (!icaclsPath.node.acl) icaclsPath.node.acl = {};
                             icaclsPath.node.acl[targetUser] = perm;
