@@ -196,25 +196,39 @@ Tip: Use the Up and Down arrow keys to cycle through your command history.</span
     });
 
     function executeCommand(input) {
-        let args = input.match(/(?:[^\s"]+|"[^"]*")+/g).map(s => s.replace(/"/g, ''));
+        let args = input.match(/(?:[^\s"]+|"[^"]*")+/g);
+        if (!args) return;
+        args = args.map(s => s.replace(/"/g, ''));
         let cmd = args.shift().toLowerCase();
 
         args = args.filter(a => a.toLowerCase() !== '-path' && a.toLowerCase() !== '-group');
 
-        const aliases = ['ls', 'cat', 'cd', 'dir', 'echo'];
+        // Added clear and cls to the alias trap!
+        const aliases = ['ls', 'cat', 'cd', 'dir', 'echo', 'clear', 'cls'];
         if (aliases.includes(cmd)) {
-            print(`Simulator Notice: The term '${cmd}' is an alias. In this class, please practice using the proper PowerShell cmdlet (e.g., Get-ChildItem, Get-Content, Set-Location).`, "warning");
+            print(`Simulator Notice: The term '${cmd}' is an alias. In this class, please practice using the proper PowerShell cmdlet (e.g., Get-ChildItem, Get-Content, Set-Location, Clear-Host).`, "warning");
             return;
         }
 
         try {
             switch (cmd) {
                 case "help":
-                    print("Available Cmdlets:\nGet-ChildItem, Get-Content, Set-Location, Get-Acl, Get-LocalUser, Get-LocalGroupMember, icacls, clear\n\nScenarios:\n1. Find the flag hidden in your Documents.\n2. Attempt to read C:\\Windows\\System32\\policy.txt\n3. Check the Administrators group for unauthorized users.\n4. Restore your own read access to C:\\Users\\StandardUser\\Project\\launch_codes.txt\n5. Audit C:\\Scripts\\backup.ps1 for insecure permissions.");
+                    print("Available Cmdlets:\nGet-ChildItem, Get-Content, Set-Location, Get-Location, Get-Acl, Get-LocalUser, Get-LocalGroupMember, icacls, whoami, Clear-Host\n\nScenarios:\n1. Find the flag hidden in your Documents.\n2. Attempt to read C:\\Windows\\System32\\policy.txt\n3. Check the Administrators group for unauthorized users.\n4. Restore your own read access to C:\\Users\\StandardUser\\Project\\launch_codes.txt\n5. Audit C:\\Scripts\\backup.ps1 for insecure permissions.");
                     break;
 
-                case "clear":
+                // NEW: Clear-Host implementation
+                case "clear-host":
                     document.getElementById("terminal").innerHTML = "";
+                    break;
+
+                // NEW: Get-Location implementation
+                case "get-location":
+                    print(`\nPath\n----\n${currentPath.join("\\")}\n`);
+                    break;
+
+                // NEW: whoami implementation
+                case "whoami":
+                    print(`laptop-sim\\${currentUser.toLowerCase()}`);
                     break;
 
                 case "set-location":
@@ -284,7 +298,8 @@ Tip: Use the Up and Down arrow keys to cycle through your command history.</span
                     break;
 
                 case "get-localgroupmember":
-                    if (args[0] === "Administrators") {
+                    if (!args[0]) { print("Get-LocalGroupMember : Missing argument", "error"); break; }
+                    if (args[0].toLowerCase() === "administrators") {
                         print("Name");
                         print("----");
                         groups["Administrators"].forEach(u => print(`LAPTOP-SIM\\${u}`));
