@@ -23,6 +23,7 @@
         }
         .error { color: #ff5555; }
         .warning { color: #ffff55; }
+        .success { color: #55ff55; }
         .input-line {
             display: flex;
             align-items: flex-start;
@@ -62,8 +63,6 @@ Tip: Use the Up and Down arrow keys to cycle through your command history.</span
     // --- MOCK SYSTEM STATE ---
     let currentUser = "StandardUser";
     let currentPath = ["C:", "Users", "StandardUser"];
-    
-    // Command History State
     let commandHistory = [];
     let historyIndex = -1;
 
@@ -78,7 +77,15 @@ Tip: Use the Up and Down arrow keys to cycle through your command history.</span
             type: "dir",
             "Public": {
                 type: "dir",
-                "Notices.txt": { type: "file", owner: "SYSTEM", acl: { "Users": "R", "Administrators": "F" }, content: "SYSTEM NOTICE:\nIf you successfully verified that only Admins can read the policy file, your flag is: flagOF{Access_Denied_Is_A_Feature}" }
+                "Notices.txt": { type: "file", owner: "SYSTEM", acl: { "Users": "R", "Administrators": "F" }, content: "SYSTEM NOTICE:\nIf you successfully verified that only Admins can read the policy file, your flag is: flagOF{Access_Denied_Is_A_Feature}" },
+                "ActiveDirectory.txt": { 
+                    type: "file", 
+                    owner: "SYSTEM", 
+                    acl: { "Users": "R", "Administrators": "F" }, 
+                    isEncrypted: true, 
+                    password: "flagOF{Least_Privilege_Violated}", 
+                    content: "=========================================\n      ACTIVE DIRECTORY (AD) BASICS\n=========================================\nCongratulations on making it to the end!\n\nActive Directory (AD) is a directory service developed by Microsoft. It acts as the central authority and phonebook for a Windows network.\n\nKey Concepts:\n1. Domain Controllers (DCs): The master servers running AD. They hold the database of all users, computers, and passwords.\n2. Centralized Authentication: Instead of creating a separate user account on every single laptop in a business, AD allows you to create one account that can log into ANY computer on the network.\n3. Group Policy (GPOs): A powerful tool used by admins to enforce security rules across all computers simultaneously (e.g., forcing a desktop wallpaper, disabling USB drives, or enforcing password complexity).\n\nIn cybersecurity, if an attacker compromises a Domain Controller, they own the entire network. Protecting AD is the ultimate goal of network defense!" 
+                }
             },
             "Scripts": {
                 type: "dir",
@@ -129,9 +136,9 @@ Tip: Use the Up and Down arrow keys to cycle through your command history.</span
         let navPath = [];
 
         if (parts[0] === "C:") {
-            navPath = parts; // Absolute
+            navPath = parts; 
         } else {
-            navPath = [...currentPath]; // Relative
+            navPath = [...currentPath]; 
             for (let part of parts) {
                 if (part === "..") navPath.pop();
                 else if (part !== ".") navPath.push(part);
@@ -154,9 +161,7 @@ Tip: Use the Up and Down arrow keys to cycle through your command history.</span
 
     function checkPermission(node, requiredPerm) {
         if (groups["Administrators"].includes(currentUser)) return true;
-        
         if (node.acl && (node.acl[currentUser] === "F" || node.acl[currentUser] === requiredPerm)) return true;
-        
         for (let group in groups) {
             if (groups[group].includes(currentUser)) {
                 if (node.acl && (node.acl[group] === "F" || node.acl[group] === requiredPerm)) return true;
@@ -172,13 +177,12 @@ Tip: Use the Up and Down arrow keys to cycle through your command history.</span
             this.value = "";
             print(`PS ${currentPath.join("\\")}> ${input}`);
             if (input) {
-                // Add to history and reset index
                 commandHistory.push(input);
                 historyIndex = commandHistory.length;
                 executeCommand(input);
             }
         } else if (e.key === "ArrowUp") {
-            e.preventDefault(); // Prevents cursor from jumping to the start of the line
+            e.preventDefault();
             if (historyIndex > 0) {
                 historyIndex--;
                 this.value = commandHistory[historyIndex];
@@ -190,7 +194,7 @@ Tip: Use the Up and Down arrow keys to cycle through your command history.</span
                 this.value = commandHistory[historyIndex];
             } else {
                 historyIndex = commandHistory.length;
-                this.value = ""; // Clear input if at the end of history
+                this.value = ""; 
             }
         }
     });
@@ -201,9 +205,9 @@ Tip: Use the Up and Down arrow keys to cycle through your command history.</span
         args = args.map(s => s.replace(/"/g, ''));
         let cmd = args.shift().toLowerCase();
 
-        args = args.filter(a => a.toLowerCase() !== '-path' && a.toLowerCase() !== '-group');
+        // Strip common flags to make parsing easier for beginners
+        args = args.filter(a => !['-path', '-group', '-password'].includes(a.toLowerCase()));
 
-        // Added clear and cls to the alias trap!
         const aliases = ['ls', 'cat', 'cd', 'dir', 'echo', 'clear', 'cls'];
         if (aliases.includes(cmd)) {
             print(`Simulator Notice: The term '${cmd}' is an alias. In this class, please practice using the proper PowerShell cmdlet (e.g., Get-ChildItem, Get-Content, Set-Location, Clear-Host).`, "warning");
@@ -213,20 +217,17 @@ Tip: Use the Up and Down arrow keys to cycle through your command history.</span
         try {
             switch (cmd) {
                 case "help":
-                    print("Available Cmdlets:\nGet-ChildItem, Get-Content, Set-Location, Get-Location, Get-Acl, Get-LocalUser, Get-LocalGroupMember, icacls, whoami, Clear-Host\n\nScenarios:\n1. Find the flag hidden in your Documents.\n2. Attempt to read C:\\Windows\\System32\\policy.txt\n3. Check the Administrators group for unauthorized users.\n4. Restore your own read access to C:\\Users\\StandardUser\\Project\\launch_codes.txt\n5. Audit C:\\Scripts\\backup.ps1 for insecure permissions.");
+                    print("Available Cmdlets:\nGet-ChildItem, Get-Content, Set-Location, Get-Location, Get-Acl, Get-LocalUser, Get-LocalGroupMember, icacls, whoami, Clear-Host, Unlock-File\n\nScenarios:\n1. Find the flag hidden in your Documents.\n2. Attempt to read C:\\Windows\\System32\\policy.txt\n3. Check the Administrators group for unauthorized users.\n4. Restore your own read access to C:\\Users\\StandardUser\\Project\\launch_codes.txt\n5. Audit C:\\Scripts\\backup.ps1 for insecure permissions.\n6. Unlock and read C:\\Public\\ActiveDirectory.txt");
                     break;
 
-                // NEW: Clear-Host implementation
                 case "clear-host":
                     document.getElementById("terminal").innerHTML = "";
                     break;
 
-                // NEW: Get-Location implementation
                 case "get-location":
                     print(`\nPath\n----\n${currentPath.join("\\")}\n`);
                     break;
 
-                // NEW: whoami implementation
                 case "whoami":
                     print(`laptop-sim\\${currentUser.toLowerCase()}`);
                     break;
@@ -252,7 +253,7 @@ Tip: Use the Up and Down arrow keys to cycle through your command history.</span
                     print("Mode                Name");
                     print("----                ----");
                     for (let key in targetDir.node) {
-                        if (key === "type" || key === "owner" || key === "acl" || key === "content") continue;
+                        if (key === "type" || key === "owner" || key === "acl" || key === "content" || key === "isEncrypted" || key === "password") continue;
                         let mode = targetDir.node[key].type === "dir" ? "d-----" : "-a----";
                         print(`${mode}              ${key}`);
                     }
@@ -271,8 +272,26 @@ Tip: Use the Up and Down arrow keys to cycle through your command history.</span
                     }
                     if (!checkPermission(fileRes.node, "R")) {
                         print(`Get-Content : Access to the path '${args[0]}' is denied.`, "error");
+                        break;
+                    } 
+                    if (fileRes.node.isEncrypted) {
+                        print(`Get-Content : The file '${args[0]}' is encrypted. Use 'Unlock-File <path> <password>' to decrypt it.`, "error");
+                        break;
+                    }
+                    print(fileRes.node.content);
+                    break;
+
+                case "unlock-file":
+                    if (args.length < 2) { print("Unlock-File : Missing arguments. Expected: Unlock-File <path> <password>", "error"); break; }
+                    let encFileRes = resolvePath(args[0]);
+                    if (!encFileRes || encFileRes.node.type !== "file") { print("Unlock-File : Cannot find path.", "error"); break; }
+                    if (!encFileRes.node.isEncrypted) { print("Unlock-File : File is not encrypted.", "warning"); break; }
+                    
+                    if (args[1] === encFileRes.node.password) {
+                        encFileRes.node.isEncrypted = false;
+                        print(`Success: '${args[0]}' has been decrypted. You can now use Get-Content to read it.`, "success");
                     } else {
-                        print(fileRes.node.content);
+                        print("Unlock-File : Incorrect password.", "error");
                     }
                     break;
 
@@ -280,7 +299,6 @@ Tip: Use the Up and Down arrow keys to cycle through your command history.</span
                     if (!args[0]) { print("Get-Acl : Missing path.", "error"); break; }
                     let aclRes = resolvePath(args[0]);
                     if (!aclRes) { print(`Get-Acl : Cannot find path.`, "error"); break; }
-                    
                     print(`\n    Directory: ${aclRes.path.slice(0,-1).join("\\")}\n`);
                     print("Path             Owner                 Access");
                     print("----             -----                 ------");
