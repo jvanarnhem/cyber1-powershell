@@ -129,34 +129,50 @@ Tip: Use the Up and Down arrow keys to cycle through your command history.</span
         document.getElementById("prompt").textContent = `PS ${currentPath.join("\\")}>`;
     }
 
-    function resolvePath(pathStr) {
-        if (!pathStr) return { node: getDirFromPath(currentPath), path: currentPath };
-        
-        let parts = pathStr.split("\\").filter(p => p !== "");
-        let navPath = [];
-
-        if (parts[0] === "C:") {
-            navPath = parts; 
-        } else {
-            navPath = [...currentPath]; 
-            for (let part of parts) {
-                if (part === "..") navPath.pop();
-                else if (part !== ".") navPath.push(part);
-            }
-        }
-
-        let curr = fs;
-        for (let p of navPath) {
-            if (curr[p]) curr = curr[p];
-            else return null;
-        }
-        return { node: curr, path: navPath };
-    }
-
     function getDirFromPath(pathArr) {
         let curr = fs;
         for (let p of pathArr) curr = curr[p];
         return curr;
+    }
+
+    // UPDATED: Now fully case-insensitive!
+    function resolvePath(pathStr) {
+        if (!pathStr) return { node: getDirFromPath(currentPath), path: [...currentPath] };
+        if (pathStr === "\\" || pathStr === "/") return { node: fs["C:"], path: ["C:"] };
+        
+        let parts = pathStr.split("\\").filter(p => p !== "");
+        if (parts.length === 0) return { node: getDirFromPath(currentPath), path: [...currentPath] };
+
+        let isAbsolute = parts[0].toUpperCase() === "C:";
+        let navPath = isAbsolute ? [] : [...currentPath];
+        
+        if (isAbsolute) {
+            navPath.push("C:");
+            parts.shift();
+        }
+
+        let curr = isAbsolute ? fs["C:"] : getDirFromPath(currentPath);
+        
+        for (let p of parts) {
+            if (p === "..") {
+                if (navPath.length > 1) {
+                    navPath.pop();
+                    curr = getDirFromPath(navPath);
+                }
+            } else if (p === ".") {
+                continue; // Do nothing for current directory marker
+            } else {
+                // Look for a case-insensitive match in the current directory
+                let realKey = Object.keys(curr).find(k => k.toLowerCase() === p.toLowerCase());
+                if (realKey) {
+                    navPath.push(realKey);
+                    curr = curr[realKey];
+                } else {
+                    return null; // Path breaks here
+                }
+            }
+        }
+        return { node: curr, path: navPath };
     }
 
     function checkPermission(node, requiredPerm) {
@@ -205,7 +221,6 @@ Tip: Use the Up and Down arrow keys to cycle through your command history.</span
         args = args.map(s => s.replace(/"/g, ''));
         let cmd = args.shift().toLowerCase();
 
-        // Strip common flags to make parsing easier for beginners
         args = args.filter(a => !['-path', '-group', '-password'].includes(a.toLowerCase()));
 
         const aliases = ['ls', 'cat', 'cd', 'dir', 'echo', 'clear', 'cls'];
@@ -334,8 +349,19 @@ Tip: Use the Up and Down arrow keys to cycle through your command history.</span
                     if (args[1].toLowerCase() === "/grant") {
                         let permParts = args[2].split(":");
                         if (permParts.length !== 2) { print("Invalid parameter format. Use User:R or User:F", "error"); break; }
-                        let targetUser = permParts[0];
+                        
+                        // UPDATED: Make user account parameter case-insensitive
+                        let targetUserRaw = permParts[0];
                         let perm = permParts[1].toUpperCase();
+                        let targetUser = targetUserRaw;
+                        
+                        const validAccounts = ["StandardUser", "Teacher", "SYSTEM", "Administrators", "Users"];
+                        for (let acc of validAccounts) {
+                            if (acc.toLowerCase() === targetUserRaw.toLowerCase()) {
+                                targetUser = acc;
+                                break;
+                            }
+                        }
 
                         if (icaclsPath.node.owner === currentUser || groups["Administrators"].includes(currentUser)) {
                             if (!icaclsPath.node.acl) icaclsPath.node.acl = {};
