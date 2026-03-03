@@ -60,6 +60,10 @@ Tip: Use the Up and Down arrow keys to cycle through your command history.</span
 </div>
 
 <script>
+    // --- OBFUSCATION DECODER ---
+    // Converts Base64 back to readable text on the fly
+    const d = (str) => atob(str);
+
     // --- MOCK SYSTEM STATE ---
     let currentUser = "StandardUser";
     let currentPath = ["C:", "Users", "StandardUser"];
@@ -67,7 +71,7 @@ Tip: Use the Up and Down arrow keys to cycle through your command history.</span
     let historyIndex = -1;
 
     const groups = {
-        "Administrators": ["Teacher", "SYSTEM", "flagOF{Evil_Hacker_99}"],
+        "Administrators": ["Teacher", "SYSTEM", d("ZmxhZ09Ge0V2aWxfSGFja2VyXzk5fQ==")],
         "Users": ["StandardUser"]
     };
 
@@ -77,25 +81,25 @@ Tip: Use the Up and Down arrow keys to cycle through your command history.</span
             type: "dir",
             "Public": {
                 type: "dir",
-                "Notices.txt": { type: "file", owner: "SYSTEM", acl: { "Users": "R", "Administrators": "F" }, content: "SYSTEM NOTICE:\nIf you successfully verified that only Admins can read the policy file, your flag is: flagOF{Access_Denied_Is_A_Feature}" },
+                "Notices.txt": { type: "file", owner: "SYSTEM", acl: { "Users": "R", "Administrators": "F" }, content: d("U1lTVEVNIE5PVElDRToKSWYgeW91IHN1Y2Nlc3NmdWxseSB2ZXJpZmllZCB0aGF0IG9ubHkgQWRtaW5zIGNhbiByZWFkIHRoZSBwb2xpY3kgZmlsZSwgeW91ciBmbGFnIGlzOiBmbGFnT0Z7QWNjZXNzX0RlbmllZF9Jc19BX0ZlYXR1cmV9") },
                 "ActiveDirectory.txt": { 
                     type: "file", 
                     owner: "SYSTEM", 
                     acl: { "Users": "R", "Administrators": "F" }, 
                     isEncrypted: true, 
-                    password: "flagOF{Least_Privilege_Violated}", 
-                    content: "=========================================\n      ACTIVE DIRECTORY (AD) BASICS\n=========================================\nCongratulations on making it to the end!\n\nActive Directory (AD) is a directory service developed by Microsoft. It acts as the central authority and phonebook for a Windows network.\n\nKey Concepts:\n1. Domain Controllers (DCs): The master servers running AD. They hold the database of all users, computers, and passwords.\n2. Centralized Authentication: Instead of creating a separate user account on every single laptop in a business, AD allows you to create one account that can log into ANY computer on the network.\n3. Group Policy (GPOs): A powerful tool used by admins to enforce security rules across all computers simultaneously (e.g., forcing a desktop wallpaper, disabling USB drives, or enforcing password complexity).\n\nIn cybersecurity, if an attacker compromises a Domain Controller, they own the entire network. Protecting AD is the ultimate goal of network defense!" 
+                    password: d("ZmxhZ09Ge0xlYXN0X1ByaXZpbGVnZV9WaW9sYXRlZH0="), 
+                    content: d("PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0KICAgICAgQUNUSVZFIERJUkVDVE9SWSAoQUQpIEJBU0lDUwo9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQpDb25ncmF0dWxhdGlvbnMgb24gbWFraW5nIGl0IHRvIHRoZSBlbmQhCgpBY3RpdmUgRGlyZWN0b3J5IChBRCkgaXMgYSBkaXJlY3Rvcnkgc2VydmljZSBkZXZlbG9wZWQgYnkgTWljcm9zb2Z0LiBJdCBhY3RzIGFzIHRoZSBjZW50cmFsIGF1dGhvcml0eSBhbmQgcGhvbmVib29rIGZvciBhIFdpbmRvd3MgbmV0d29yay4KCktleSBDb25jZXB0czoKMS4gRG9tYWluIENvbnRyb2xsZXJzIChEQ3MpOiBUaGUgbWFzdGVyIHNlcnZlcnMgcnVubmluZyBBRC4gVGhleSBob2xkIHRoZSBkYXRhYmFzZSBvZiBhbGwgdXNlcnMsIGNvbXB1dGVycywgYW5kIHBhc3N3b3Jkcy4KMi4gQ2VudHJhbGl6ZWQgQXV0aGVudGljYXRpb246IEluc3RlYWQgb2YgY3JlYXRpbmcgYSBzZXBhcmF0ZSB1c2VyIGFjY291bnQgb24gZXZlcnkgc2luZ2xlIGxhcHRvcCBpbiBhIGJ1c2luZXNzLCBBRCBhbGxvd3MgeW91IHRvIGNyZWF0ZSBvbmUgYWNjb3VudCB0aGF0IGNhbiBsb2cgaW50byBBTlkgY29tcHV0ZXIgb24gdGhlIG5ldHdvcmsuCjMuIEdyb3VwIFBvbGljeSAoR1BPcyk6IEEgcG93ZXJmdWwgdG9vbCB1c2VkIGJ5IGFkbWlucyB0byBlbmZvcmNlIHNlY3VyaXR5IHJ1bGVzIGFjcm9zcyBhbGwgY29tcHV0ZXJzIHNpbXVsdGFuZW91c2x5IChlLmcuLCBmb3JjaW5nIGEgZGVza3RvcCB3YWxscGFwZXIsIGRpc2FibGluZyBVU0IgZHJpdmVzLCBvciBlbmZvcmNpbmcgcGFzc3dvcmQgY29tcGxleGl0eSkuCgpJbiBjeWJlcnNlY3VyaXR5LCBpZiBhbiBhdHRhY2tlciBjb21wcm9taXNlcyBhIERvbWFpbiBDb250cm9sbGVyLCB0aGV5IG93biB0aGUgZW50aXJlIG5ldHdvcmsuIFByb3RlY3RpbmcgQUQgaXMgdGhlIHVsdGltYXRlIGdvYWwgb2YgbmV0d29yayBkZWZlbnNlIQ==") 
                 }
             },
             "Scripts": {
                 type: "dir",
-                "backup.ps1": { type: "file", owner: "SYSTEM", acl: { "Users": "F", "Administrators": "F" }, content: "# Automated System Backup\n# WARNING VULNERABILITY: The standard 'Users' group has Full Control over this script.\n# flagOF{Least_Privilege_Violated}"}
+                "backup.ps1": { type: "file", owner: "SYSTEM", acl: { "Users": "F", "Administrators": "F" }, content: d("IyBBdXRvbWF0ZWQgU3lzdGVtIEJhY2t1cAojIFdBUk5JTkcgVlVMTkVSQUJJTElUWTogVGhlIHN0YW5kYXJkICdVc2VycycgZ3JvdXAgaGFzIEZ1bGwgQ29udHJvbCBvdmVyIHRoaXMgc2NyaXB0LgojIGZsYWdPRntMZWFzdF9Qcml2aWxlZ2VfVmlvbGF0ZWR9")}
             },
             "Windows": {
                 type: "dir",
                 "System32": {
                     type: "dir",
-                    "policy.txt": { type: "file", owner: "SYSTEM", acl: { "Administrators": "R", "SYSTEM": "F" }, content: "CONFIDENTIAL SYSTEM POLICY.\nNever expose this file." }
+                    "policy.txt": { type: "file", owner: "SYSTEM", acl: { "Administrators": "R", "SYSTEM": "F" }, content: d("Q09ORklERU5USUFMIFNZU1RFTSBQT0xJQ1kuCk5ldmVyIGV4cG9zZSB0aGlzIGZpbGUu") }
                 }
             },
             "Users": {
@@ -104,11 +108,11 @@ Tip: Use the Up and Down arrow keys to cycle through your command history.</span
                     type: "dir",
                     "Documents": {
                         type: "dir",
-                        "notes.txt": { type: "file", owner: "StandardUser", acl: { "StandardUser": "F" }, content: "Class Notes:\nRemember, aliases are for shortcuts, but cmdlets are for scripts.\nflagOF{Cmdlets_Are_Fundamental}" }
+                        "notes.txt": { type: "file", owner: "StandardUser", acl: { "StandardUser": "F" }, content: d("Q2xhc3MgTm90ZXM6ClJlbWVtYmVyLCBhbGlhc2VzIGFyZSBmb3Igc2hvcnRjdXRzLCBidXQgY21kbGV0cyBhcmUgZm9yIHNjcmlwdHMuCmZsYWdPRntDbWRsZXRzX0FyZV9GdW5kYW1lbnRhbH0=") }
                     },
                     "Project": {
                         type: "dir",
-                        "launch_codes.txt": { type: "file", owner: "StandardUser", acl: { "SYSTEM": "F" }, content: "Missile Command Data:\nflagOF{I_Control_The_ACLs}" }
+                        "launch_codes.txt": { type: "file", owner: "StandardUser", acl: { "SYSTEM": "F" }, content: d("TWlzc2lsZSBDb21tYW5kIERhdGE6CmZsYWdPRntJX0NvbnRyb2xfVGhlX0FDTHN9") }
                     }
                 }
             }
@@ -135,7 +139,6 @@ Tip: Use the Up and Down arrow keys to cycle through your command history.</span
         return curr;
     }
 
-    // UPDATED: Now fully case-insensitive!
     function resolvePath(pathStr) {
         if (!pathStr) return { node: getDirFromPath(currentPath), path: [...currentPath] };
         if (pathStr === "\\" || pathStr === "/") return { node: fs["C:"], path: ["C:"] };
@@ -160,15 +163,14 @@ Tip: Use the Up and Down arrow keys to cycle through your command history.</span
                     curr = getDirFromPath(navPath);
                 }
             } else if (p === ".") {
-                continue; // Do nothing for current directory marker
+                continue; 
             } else {
-                // Look for a case-insensitive match in the current directory
                 let realKey = Object.keys(curr).find(k => k.toLowerCase() === p.toLowerCase());
                 if (realKey) {
                     navPath.push(realKey);
                     curr = curr[realKey];
                 } else {
-                    return null; // Path breaks here
+                    return null; 
                 }
             }
         }
@@ -327,7 +329,7 @@ Tip: Use the Up and Down arrow keys to cycle through your command history.</span
                     print("StandardUser            True     Standard student account");
                     print("Teacher                 True     Instructor Admin");
                     print("SYSTEM                  True     Built-in system account");
-                    print("flagOF{Evil_Hacker_99}  True     Suspicious account");
+                    print(`${d("ZmxhZ09Ge0V2aWxfSGFja2VyXzk5fQ==")}  True     Suspicious account`);
                     break;
 
                 case "get-localgroupmember":
@@ -350,7 +352,6 @@ Tip: Use the Up and Down arrow keys to cycle through your command history.</span
                         let permParts = args[2].split(":");
                         if (permParts.length !== 2) { print("Invalid parameter format. Use User:R or User:F", "error"); break; }
                         
-                        // UPDATED: Make user account parameter case-insensitive
                         let targetUserRaw = permParts[0];
                         let perm = permParts[1].toUpperCase();
                         let targetUser = targetUserRaw;
